@@ -150,10 +150,10 @@ exports.getAllJob = (request, response, next) => {
 
 }
 exports.getstats = (request, response, next) => {
+    let declineJobs = 0;
+    let inteviewJobs = 0;
+    let pendingJobs = 0;
     Job.find({ createdBy: request.userId }).then(job => {
-        let declineJobs = 0;
-        let inteviewJobs = 0;
-        let pendingJobs = 0;
         job.map(j => {
             if (j.status === 'declined') {
                 declineJobs++;
@@ -166,42 +166,133 @@ exports.getstats = (request, response, next) => {
             }
 
         })
+        Job.aggregate([
+            {
+                $group: {
+                    _id: {
+                        month: { $month: "$createdAt" },
+                        year: { $year: "$createdAt" }
+                    },
+                    total: { $sum: 1 },
+                },
+            },
+            {
+                $project: {
+                    month: '$_id.month',
+                    year: ('$_id.year').toString(),
+                    total: 1,
+                    _id: 0,
+                },
+
+
+            },
+            {
+                $addFields: {
+                    month: {
+                        $let: {
+                            vars: {
+                                monthsInString: [, 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'july', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+                            },
+                            in: {
+                                $arrayElemAt: ['$$monthsInString', '$month']
+                            }
+                        }
+                    }
+                }
+            }
+
+        ])
+            .then((result) => {
+                response.json({
+                    defaultStats: { pending: pendingJobs, interview: inteviewJobs, declined: declineJobs }, monthlyApplications: result.map(r => {
+                        return { date: r.month + " " + r.year, count: r.total };
+                    })
+                });
+            })
+            .catch((error) => {
+
+                // Handle the error
+                response.status(500).json({ error: error });
+            });
+    })
+}
+
+
+exports.updateJob = (request, response, next) => {
+    console.log(request.params.jobId);
+
+    console.log(request.userId);
+
+    const position = request.body.position;
+    const company = request.body.company;
+    const jobLocation = request.body.jobLocation;
+    const jobType = request.body.jobType;
+    const status = request.body.status;
+
+    console.log(request.body);
+    if (!request.isAuth) {
+        const error = new Error('Your Dont have permission to delete this job');
+        error.code = 422;
+        throw error;
+
+    }
+    User.findOne({ _id: request.userId }).then(user => {
+
+        if (!user) {
+            const error = new Error("user not found");
+            error.code = 401;
+            throw error;
+        }
+        const job = user.jobs.map(job => {
+            if (job.toString() === request.params.jobId.toString()) {
+                return job;
+            }
+        })
+
+        Job.findOne({ _id: job }).then(post => {
+
+            post.position = position;
+            post.company = company;
+            post.jobLocation = jobLocation;
+            post.jobType = jobType;
+            post.status = status;
+
+            post.save();
+
+            return response.status(200).json({ updatedJob: post });
+
+        })
+    })
+}
+
+exports.deleteJob = (request, response, next) => {
+    let loadUser;
+    if (!request.isAuth) {
+        const error = new Error('You dont have permission to delete');
+        error.code = 422;
+        throw error;
+    }
+
+    User.findOne({ _id: request.userId }).then(user => {
+        if (!user) {
+            const error = new Error('You dont have permission to delete');
+            error.code = 422;
+            throw error;
+        }
+  
+        user.jobs.pull(request.params.jobId);
+
+        user.save();
+
+  
+         Job.deleteOne({_id:request.params.jobId}).then(result => {
+            response.status(200).json({"msg":"Success! Job removed"});
+        }).catch(error => {
+            console.log(error);
+        })
     })
 
-    const startDate = moment().startOf('month');
-    const endDate = moment().endOf('month');
-    console.log(startDate)
-    console.log(endDate)
    
 
-    Job.aggregate([
-        {
-          $group: {
-            _id: {
-              $dateToString: {
-                format: '%b %Y',
-                date: '$createdAt',
-              },
-            },
-            total: { $sum: 1 },
-          },
-        },
-        {
-          $project: {
-            date: '$_id',
-            total: 1,
-            _id: 0,
-          },
-        },
-      ])
-        .then((results) => {
-          response.json(results);
-        })
-        .catch((error) => {
-            
-          // Handle the error
-          response.status(500).json({ error: error });
-        });
-    
 
 }
