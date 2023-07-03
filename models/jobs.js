@@ -28,7 +28,11 @@ const jobSchema = new Schema({
         type:Schema.Types.ObjectId,
         ref:'User',
         required:true
-    }
+    },
+    applyJobs:[{
+        type:Schema.Types.ObjectId,
+        ref:'User'
+    }]
 },{timestamps:true});
 
 module.exports = mongoose.model('Jobs',jobSchema);
