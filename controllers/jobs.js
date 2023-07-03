@@ -63,7 +63,7 @@ exports.getAllJob = (request, response, next) => {
 
     const perPage = 10;
 
-    let query = {};
+    let query = {createdBy:{$eq:request.userId}};
 
     if (!request.isAuth) {
         const error = new Error('Not Authenticated');
@@ -107,9 +107,9 @@ exports.getAllJob = (request, response, next) => {
     }
 
 
-    Job.find(query).sort(sortOption).skip((page - 1) * perPage).limit(perPage).then(job => {
+    Job.find(query).populate('createdBy').sort(sortOption).skip((page - 1) * perPage).limit(perPage).then(job => {
 
-        Job.find(query).sort(sortOption).countDocuments().then(count => {
+        Job.find(query).populate('createdBy').sort(sortOption).countDocuments().then(count => {
 
             const numOfPages = count < perPage ? 1 : Math.ceil(count / perPage);
 
@@ -279,20 +279,69 @@ exports.deleteJob = (request, response, next) => {
             error.code = 422;
             throw error;
         }
-  
+
         user.jobs.pull(request.params.jobId);
 
         user.save();
 
-  
-         Job.deleteOne({_id:request.params.jobId}).then(result => {
-            response.status(200).json({"msg":"Success! Job removed"});
+
+        Job.deleteOne({ _id: request.params.jobId }).then(result => {
+            response.status(200).json({ "msg": "Success! Job removed" });
         }).catch(error => {
             console.log(error);
         })
     })
 
-   
 
 
+
+}
+
+exports.applyJob = async (request,response,next) => {
+
+    const userId = await request.userId;
+
+    let query = {createdBy:{$ne:request.userId}};
+
+    Job.find(query).then(job => {
+        response.status(200).json({jobs:job});
+    })
+    
+    // User.findOne({_id:request.userId},)
+}
+
+exports.addApplyJob = async(request,response,next) => {
+    const jobId = request.body._id;
+    const jobOwner = request.body.createdBy;
+    const candidate = request.userId;
+
+
+    console.log(jobId);
+    console.log(jobOwner);
+    console.log(candidate);
+
+    const job = await Job.findById(jobId);
+
+    const checkApply_status = job.applyJobs.find(job => job.toString() === candidate.toString());
+
+    if(checkApply_status)
+    {
+        return response.status(200).json({message:'You already apply this job'});
+    }
+
+
+    job.applyJobs.push(candidate);
+    await job.save();
+    return response.status(200).json({message:' You successfully apply this job'});
+    console.log(job)
+
+
+}
+
+exports.getApplications = async(request,response,next) => {
+    
+    await Job.find({createdBy:'64a2867c8228418e80a112f7'}).then(job => {
+        ob
+    });
+    
 }
