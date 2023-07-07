@@ -12,7 +12,9 @@ router.patch('/jobs/:jobId',isAuth,jobAuth.updateJob);
 router.delete('/jobs/:jobId',isAuth,jobAuth.deleteJob);
 router.get('/apply_for_jobs',isAuth,jobAuth.applyJob);
 router.post('/add_apply_for_jobs',isAuth,jobAuth.addApplyJob);
-router.get('/applications',jobAuth.getApplications);
+router.get('/applications',isAuth,jobAuth.getApplications);
+router.get('/appliedApplications',isAuth,jobAuth.getUserJobApplications)
+router.post('/applicationRequest',isAuth,jobAuth.updateApplicationRequest);
 
 module.exports = router;
 
