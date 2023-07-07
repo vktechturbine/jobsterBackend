@@ -25,6 +25,7 @@ module.exports  = async (request,response,next) => {
         return next();
     }
     request.userId = decodeToken.userId;
+   
     request.isAuth = true;
     
     next();

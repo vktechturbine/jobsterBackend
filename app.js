@@ -17,12 +17,12 @@ app.use(bodyParser.urlencoded({extended:true}));
 app.use(bodyParser.json())
 
 
-const corsOptions ={
+/* const corsOptions ={
     origin:'http://192.168.0.184:5173', 
     credentials:true,            //access-control-allow-credentials:true
     optionSuccessStatus:200
-}
-app.use(cors(corsOptions));
+} */
+app.use(cors());
 
 /* app.use((request, response, next) => {
 

@@ -2,6 +2,8 @@ const validator = require('validator');
 const User = require('../models/user');
 const Job = require('../models/jobs');
 const moment = require('moment');
+const mongoose = require('mongoose');
+const ObjectID = require('mongodb').ObjectId;
 
 exports.createJob = (request, response, next) => {
     console.log(request);
@@ -35,7 +37,8 @@ exports.createJob = (request, response, next) => {
         jobLocation: jobLocation,
         status: status,
         jobType: jobType,
-        createdBy: request.userId
+        createdBy: request.userId,
+        applyJobs: []
     })
     let current_job;
     job.save().then(result => {
@@ -63,7 +66,7 @@ exports.getAllJob = (request, response, next) => {
 
     const perPage = 10;
 
-    let query = {createdBy:{$eq:request.userId}};
+    let query = { createdBy: { $eq: request.userId } };
 
     if (!request.isAuth) {
         const error = new Error('Not Authenticated');
@@ -149,72 +152,85 @@ exports.getAllJob = (request, response, next) => {
 
 
 }
-exports.getstats = (request, response, next) => {
+exports.getstats = async (request, response, next) => {
     let declineJobs = 0;
     let inteviewJobs = 0;
     let pendingJobs = 0;
-    Job.find({ createdBy: request.userId }).then(job => {
-        job.map(j => {
-            if (j.status === 'declined') {
-                declineJobs++;
-            }
-            if (j.status === 'interview') {
-                inteviewJobs++;
-            }
-            if (j.status === 'pending') {
-                pendingJobs++;
-            }
 
-        })
-        Job.aggregate([
-            {
-                $group: {
-                    _id: {
-                        month: { $month: "$createdAt" },
-                        year: { $year: "$createdAt" }
-                    },
-                    total: { $sum: 1 },
+    const job = await Job.find({ createdBy: request.userId });
+    job.map(j => {
+        if (j.status === 'declined') {
+            declineJobs++;
+        }
+        if (j.status === 'interview') {
+            inteviewJobs++;
+        }
+        if (j.status === 'pending') {
+            pendingJobs++;
+        }
+
+    })
+    /*   await Job.aggregate([
+         {
+             $match: { createdBy:{$eq:new ObjectID("$"+request.userId)} }
+         },]).then(result => {
+             console.log(result)
+         }) */
+    await Job.aggregate([
+        {
+            $match: { createdBy: new ObjectID(request.userId) }
+
+        },
+
+        {
+
+            $group: {
+                _id: {
+                    month: { $month: "$createdAt" },
+                    year: { $year: "$createdAt" }
                 },
+                total: { $sum: 1 },
             },
-            {
-                $project: {
-                    month: '$_id.month',
-                    year: ('$_id.year').toString(),
-                    total: 1,
-                    _id: 0,
-                },
+        },
+        {
+            $project: {
+                month: '$_id.month',
+                year: ('$_id.year').toString(),
+                total: 1,
+                _id: 0,
+            },
 
 
-            },
-            {
-                $addFields: {
-                    month: {
-                        $let: {
-                            vars: {
-                                monthsInString: [, 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'july', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
-                            },
-                            in: {
-                                $arrayElemAt: ['$$monthsInString', '$month']
-                            }
+        },
+        {
+            $addFields: {
+                month: {
+                    $let: {
+                        vars: {
+                            monthsInString: [, 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'july', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+                        },
+                        in: {
+                            $arrayElemAt: ['$$monthsInString', '$month']
                         }
                     }
                 }
             }
+        }
 
-        ])
-            .then((result) => {
-                response.json({
-                    defaultStats: { pending: pendingJobs, interview: inteviewJobs, declined: declineJobs }, monthlyApplications: result.map(r => {
-                        return { date: r.month + " " + r.year, count: r.total };
-                    })
-                });
-            })
-            .catch((error) => {
-
-                // Handle the error
-                response.status(500).json({ error: error });
+    ])
+        .then(result => {
+            console.log(result);
+            response.json({
+                defaultStats: { pending: pendingJobs, interview: inteviewJobs, declined: declineJobs }, monthlyApplications: result.map(r => {
+                    return { date: r.month + " " + r.year, count: r.total };
+                })
             });
-    })
+        })
+        .catch((error) => {
+
+            // Handle the error
+            response.status(500).json({ error: "error" });
+        });
 }
 
 
@@ -265,13 +281,21 @@ exports.updateJob = (request, response, next) => {
     })
 }
 
-exports.deleteJob = (request, response, next) => {
+exports.deleteJob = async (request, response, next) => {
     let loadUser;
+
+
     if (!request.isAuth) {
         const error = new Error('You dont have permission to delete');
         error.code = 422;
         throw error;
     }
+
+    console.log("Hello")
+    await User.updateMany({}, { $pull: { applyjobs: { jobId: request.params.jobId } } })
+    console.log("India")
+
+
 
     User.findOne({ _id: request.userId }).then(user => {
         if (!user) {
@@ -283,6 +307,7 @@ exports.deleteJob = (request, response, next) => {
         user.jobs.pull(request.params.jobId);
 
         user.save();
+
 
 
         Job.deleteOne({ _id: request.params.jobId }).then(result => {
@@ -297,51 +322,174 @@ exports.deleteJob = (request, response, next) => {
 
 }
 
-exports.applyJob = async (request,response,next) => {
+exports.applyJob = async (request, response, next) => {
 
     const userId = await request.userId;
 
-    let query = {createdBy:{$ne:request.userId}};
+    let query = { createdBy: { $ne: request.userId } };
 
     Job.find(query).then(job => {
-        response.status(200).json({jobs:job});
+        response.status(200).json({ jobs: job });
     })
-    
+
     // User.findOne({_id:request.userId},)
 }
 
-exports.addApplyJob = async(request,response,next) => {
+exports.addApplyJob = async (request, response, next) => {
     const jobId = request.body._id;
     const jobOwner = request.body.createdBy;
     const candidate = request.userId;
 
-
-    console.log(jobId);
-    console.log(jobOwner);
-    console.log(candidate);
+    /*  console.log("Hello");
+     console.log(request.body);
+     console.log("World");
+ 
+     console.log(jobId);
+     console.log(jobOwner);
+     console.log(candidate); */
 
     const job = await Job.findById(jobId);
 
     const checkApply_status = job.applyJobs.find(job => job.toString() === candidate.toString());
 
-    if(checkApply_status)
-    {
-        return response.status(200).json({message:'You already apply this job'});
+    if (checkApply_status) {
+        return response.status(200).json({ message: 'You already apply this job' });
     }
-
-
     job.applyJobs.push(candidate);
     await job.save();
-    return response.status(200).json({message:' You successfully apply this job'});
-    console.log(job)
+    const user = await User.findById(candidate);
+    user.applyjobs.push({ jobId: job._id });
+    await user.save();
+    return response.status(200).json({ message: ' You successfully apply this job' });
+
+
+
+    /* const checkApply_status = job.applyJobs.find(job => job.toString() === candidate.toString());
+
+    if (checkApply_status) {
+        return response.status(200).json({ message: 'You already apply this job' });*/
+
+
+
 
 
 }
 
-exports.getApplications = async(request,response,next) => {
-    
-    await Job.find({createdBy:'64a2867c8228418e80a112f7'}).then(job => {
-        ob
+exports.getApplications = async (request, response, next) => {
+
+    console.log(request.userId);
+    const job = await Job.find({ createdBy: request.userId }).populate('applyJobs');
+
+
+
+
+    const user = await job.map(jobs => {
+
+
+        return jobs?.applyJobs?.map(applyjob => {
+
+
+
+            return ({ userId: applyjob._id, userName: applyjob.name, userEmail: applyjob.email, userLocation: applyjob.location, jobId: jobs._id, jobPosition: jobs.position, jobLocation: jobs.jobLocation, jobStatus: jobs.status });
+
+
+
+            // console.log(applyjob.name);
+            // newApplyjobId.push(applyjob);
+        });
+
+
+
+
     });
-    
+
+    const newArray = user.flat(1);
+    const uses = await User.find();
+
+    const jobstatus = [];
+
+
+    uses.map(userss => {
+        newArray.map(newjob => {
+            if (newjob.userId.toString() === userss._id.toString()) {
+                userss.applyjobs.map(jobss => {
+                    if (jobss.jobId.toString() === newjob.jobId.toString()) {
+                        jobstatus.push({ jobId1: jobss.jobId, userid:userss._id, status1: jobss.status });
+                    }
+                });
+            }
+        })
+
+    });
+
+    newArray.map((aray, index) => {
+        return jobstatus.map(staus => {
+
+            if (aray.jobId.toString() === staus.jobId1.toString() && aray.userId.toString() === staus.userid.toString()) {
+                newArray[index].jobStatus = staus.status1;
+            }
+        })
+    })
+console.log("new  +++++++++++++++++++++")
+console.log(newArray);
+console.log("new  +++++++++++++++++++++")
+console.log(jobstatus);
+
+    response.status(200).json({ jobs: newArray })
+
+    /* newArray.map(newarray => {
+         
+    })
+    console.log("World");
+
+
+
+
+
+
+    /*  const users = await User.find({_id:{$in:['649a83cb7596d2a695989a22','649ab1567bc4f8ff7474803f']}});
+ 
+     console.log(users); */
+
+
+
+
+}
+
+
+
+exports.getUserJobApplications = async (request, response, next) => {
+    console.log("getUserJobApplications called");
+    console.log(request.userId);
+    const user = await User.findById(request.userId).populate('applyjobs.jobId');
+    console.log(user.applyjobs);
+    /* const job = await Job.find({applyJobs:{$in:request.userId}}).then(appliedJobs => {
+        
+        return appliedJobs;
+    }) */
+
+    if (user.applyjobs) {
+        response.status(200).json({ jobs: user.applyjobs });
+    }
+    else {
+        response.status(200).json({ message: "job not Found" });
+    }
+    /* .catch(error => {
+        
+    }); */
+
+
+}
+
+exports.updateApplicationRequest = async (request, response, next) => {
+    console.log("Hello")
+    console.log(request.body)
+    console.log("World")
+
+    const user = await User.findOneAndUpdate({ _id: request.body.userID, applyjobs: { $elemMatch: { jobId: request.body.jobID } } }, { $set: { "applyjobs.$.status": request.body.selectionRequest } },{ new: true });
+    // console.log(user);
+    if (user) {
+        console.log(user);
+    }
+    response.json({ user: user });
 }
