@@ -376,8 +376,31 @@ exports.addApplyJob = async (request, response, next) => {
 }
 
 exports.getApplications = async (request, response, next) => {
+    const job = await Job.aggregate([
+        { $match: { createdBy: new ObjectID(request.userId)} },
+        { $lookup: { from: 'users', localField: 'applyJobs', foreignField: '_id', as: 'users' } },
+        { $unwind: '$users' },
+        {
+          $project: {
+            userId: '$users._id',
+            userName: '$users.name',
+            userEmail: '$users.email',
+            userLocation: '$users.location',
+            jobId: '$_id',
+            jobPosition: '$position',
+            jobLocation: '$jobLocation',
+            jobStatus: '$status'
+          }
+        }
+      ]);
+      
+      console.log(job)
+      
+      
+      // updatedArray will contain the retrieved data directly from the database
+      
 
-    console.log(request.userId);
+    /* console.log(request.userId);
     const job = await Job.find({ createdBy: request.userId }).populate('applyJobs');
 
 
@@ -402,6 +425,7 @@ exports.getApplications = async (request, response, next) => {
 
 
     });
+    
 
     const newArray = user.flat(1);
     const uses = await User.find();
@@ -435,7 +459,7 @@ console.log(newArray);
 console.log("new  +++++++++++++++++++++")
 console.log(jobstatus);
 
-    response.status(200).json({ jobs: newArray })
+    response.status(200).json({ jobs: newArray })  */
 
     /* newArray.map(newarray => {
          
