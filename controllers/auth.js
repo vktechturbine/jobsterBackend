@@ -4,7 +4,6 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 exports.registerUser = (request, response, next) => {
 
-    console.log()
     const name = request.body.name;
     const email = request.body.email;
     const password = request.body.password;
@@ -13,19 +12,17 @@ exports.registerUser = (request, response, next) => {
 
 
         if (user) {
-            console.log("user found");
             return response.status(200).json("user has already registered");
         }
         if (!validator.isEmail(email)) {
-            console.log('invalid email')
         }
 
         if (validator.isEmpty(password) || !validator.isLength(password, { min: 5 })) {
-            console.log('Password is to short');
+            
         }
     });
     bcrypt.hash(password, 12).then(hashpw => {
-        console.log(email)
+     
 
         const user = new User({
             email: email,
@@ -54,17 +51,15 @@ exports.loginUser = (request, response, next) => {
     const email = request.body.email;
     const password = request.body.password;
     let loadUser;
-    console.log(request.body.password);
 
     User.findOne({ email: email }).then(user => {
-        console.log(user);
         loadUser = user;
         if (!user) {
             console.log("user not found")
         }
         return bcrypt.compare(password, user.password);
     }).then(isEqual => {
-        console.log(isEqual)
+       
         if (!isEqual) {
             const error = new Error("Password is not match");
             error.statusCode = 422;

@@ -350,7 +350,7 @@ exports.addApplyJob = async (request, response, next) => {
 
     const job = await Job.findById(jobId);
 
-    const checkApply_status = job.applyJobs.find(job => job.toString() === candidate.toString());
+    const checkApply_status = job?.applyJobs?.find(job => `${job}` === `${candidate}`);
 
     if (checkApply_status) {
         return response.status(200).json({ message: 'You already apply this job' });
@@ -358,8 +358,8 @@ exports.addApplyJob = async (request, response, next) => {
     job.applyJobs.push(candidate);
     await job.save();
     const user = await User.findById(candidate);
-    user.applyjobs.push({ jobId: job._id });
-    await user.save();
+    user?.applyjobs?.push({ jobId: job._id });
+    await user?.save();
     return response.status(200).json({ message: ' You successfully apply this job' });
 
 
@@ -376,6 +376,7 @@ exports.addApplyJob = async (request, response, next) => {
 }
 
 exports.getApplications = async (request, response, next) => {
+    console.log("user id 3 :=> ", request.userId)
     const job = await Job.aggregate([
         { $match: { createdBy: new ObjectID(request.userId)} },
         { $lookup: { from: 'users', localField: 'applyJobs', foreignField: '_id', as: 'users' } },
@@ -394,9 +395,9 @@ exports.getApplications = async (request, response, next) => {
         }
       ]);
       
-      console.log(job)
       
       
+      return response.status(200).json(job);
       // updatedArray will contain the retrieved data directly from the database
       
 
@@ -483,17 +484,17 @@ console.log(jobstatus);
 
 
 exports.getUserJobApplications = async (request, response, next) => {
-    console.log("getUserJobApplications called");
-    console.log(request.userId);
-    const user = await User.findById(request.userId).populate('applyjobs.jobId');
-    console.log(user.applyjobs);
+    console.log("user 1 :=> ", request?.userId);
+    const user = await User?.findById(request?.userId).populate('applyjobs.jobId');
+    console.log("user 2 :=> ", user);
+    
     /* const job = await Job.find({applyJobs:{$in:request.userId}}).then(appliedJobs => {
         
         return appliedJobs;
     }) */
 
-    if (user.applyjobs) {
-        response.status(200).json({ jobs: user.applyjobs });
+    if (user?.applyjobs) {
+        response.status(200).json({ jobs: user?.applyjobs });
     }
     else {
         response.status(200).json({ message: "job not Found" });
