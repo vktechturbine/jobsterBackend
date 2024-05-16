@@ -1,57 +1,39 @@
-const express = require('express');
-const mongoose = require('mongoose');
+const express = require("express");
+const mongoose = require("mongoose");
+require("dotenv").config();
+const http = require("http");
 
-const http = require('http');
+const cors = require("cors");
+const userRoute = require("./routes/auth");
+const jobsRoute = require("./routes/job");
 
-
-const cors = require('cors');
-const userRoute = require('./routes/auth');
-const jobsRoute = require('./routes/job');
-
-
-const bodyParser = require('body-parser');
+const bodyParser = require("body-parser");
 const app = express();
 const httpServer = http.createServer(app);
 
-app.use(bodyParser.urlencoded({extended:true}));
-app.use(bodyParser.json())
+app.use(bodyParser.urlencoded({ extended: true }));
+app.use(bodyParser.json());
 
-
-/* const corsOptions ={
-    origin:'http://192.168.0.184:5173', 
-    credentials:true,            //access-control-allow-credentials:true
-    optionSuccessStatus:200
-} */
 app.use(cors());
 
-/* app.use((request, response, next) => {
-
-    response.setHeader('Access-Control-Allow-Origin', '*');
-    response.setHeader('Access-Control-Allow-Methods', 'OPTIONS, GET, POST, PUT, PATCH, DELETE');
-    response.setHeader('Access-Control-Allow-Headers', 'Content-Type', 'Authorization');
-    if (request.method === 'OPTIONS') {
-        return response.sendStatus(200);
-    }
-    next();
-
-}) */
-
-app.use('/user',userRoute);
-app.use('/job',jobsRoute);
+app.use("/user", userRoute);
+app.use("/job", jobsRoute);
 
 app.use((error, request, response, next) => {
+  const status = error.statusCode;
+  const message = error.message;
 
-    const status = error.statusCode;
-    const message = error.message;
-    
-    response.status(200).json({ message: message});
-    
-})
-mongoose.connect('mongodb+srv://vishal:Mongo12password@cluster0.y1iwedf.mongodb.net/jobster').then(result => {
-
-    
-    httpServer.listen(3004,'localhost');
-}).catch(error => {
+  response.status(200).json({ message: message });
+});
+mongoose
+  .connect(
+    `mongodb+srv://${process.env.MONGO_USER}:${process.env.MONGO_PASSWORD}@cluster0.y1iwedf.mongodb.net/${process.env.MONGO_DATABASE}`
+  )
+  .then((result) => {
+    console.log("Connected")
+    httpServer.listen(3004, "localhost");
+  })
+  .catch((error) => {
+    console.log("error :=> ", error);
     console.log("Not Connected");
-})
-
+  });

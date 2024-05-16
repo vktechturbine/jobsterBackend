@@ -1,0 +1,31 @@
+# Dependency directories
+node_modules/
+
+# Environment variables
+.env
+
+# Logs
+logs/
+*.log
+
+# Output of build tools
+dist/
+out/
+
+# OS or editor files
+.DS_Store
+Thumbs.db
+
+# Dependency lock files
+package-lock.json
+yarn.lock
+
+# IDE files
+.idea/
+.vscode/
+
+# Testing directory
+coverage/
+
+# Config files that may contain sensitive information
+config.js
