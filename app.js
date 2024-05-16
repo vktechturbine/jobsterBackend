@@ -44,16 +44,13 @@ app.use((error, request, response, next) => {
     const status = error.statusCode;
     const message = error.message;
     
-    console.log(error)
-    console.log(status);
     response.status(200).json({ message: message});
     
 })
-// console.log(ip.address()+":"+3002);
-mongoose.connect('mongodb+srv://Vishalrk:tech1mini@cluster0.y1iwedf.mongodb.net/jobster').then(result => {
-    console.log("Connected");
+mongoose.connect('mongodb+srv://vishal:Mongo12password@cluster0.y1iwedf.mongodb.net/jobster').then(result => {
+
     
-    httpServer.listen(3001,'192.168.0.184');
+    httpServer.listen(3004,'localhost');
 }).catch(error => {
     console.log("Not Connected");
 })
