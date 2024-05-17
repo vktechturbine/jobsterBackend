@@ -31,7 +31,7 @@ mongoose
   )
   .then((result) => {
     console.log("Connected")
-    httpServer.listen(3004, "localhost");
+    httpServer.listen(3004);
   })
   .catch((error) => {
     console.log("error :=> ", error);
